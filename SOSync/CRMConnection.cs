@@ -17,6 +17,7 @@ namespace SOSync
     {
         public const string ENTITY_PROJECT = "am_project";
         public const string ENTITY_SO = "am_so";
+        public const string ENTITY_SOLINE = "am_soline";
         public const string ENTITY_SO_TYPE = "am_salesordertype";
         public const string ENTITY_EMPLOYEE = "am_employee";
         public const string ENTITY_ACCOUNT = "account";
@@ -85,6 +86,16 @@ namespace SOSync
             EntityCollection collection = service.RetrieveMultiple(query);
             return (collection.Entities.Count == 0) ? null : collection.Entities.First();
         }
+
+        public EntityCollection FindSalesOrderLines(Guid soid)
+        {
+            QueryByAttribute query = new QueryByAttribute("am_soline");
+            query.AddAttributeValue("am_lopsalesordernumberid", soid);
+            query.ColumnSet = new ColumnSet(true);
+            EntityCollection collection = service.RetrieveMultiple(query);
+            return collection;
+        }
+
 
         public IOrganizationService service;
         OrganizationServiceProxy service_proxy;

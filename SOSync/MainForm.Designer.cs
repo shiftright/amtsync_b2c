@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.btnStop = new System.Windows.Forms.Button();
             this.btnStart = new System.Windows.Forms.Button();
             this.lbLog = new System.Windows.Forms.ListBox();
@@ -37,6 +38,7 @@
             this.txtBaanIP = new System.Windows.Forms.Label();
             this.txtCompanies = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
+            this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.SuspendLayout();
             // 
             // btnStop
@@ -130,6 +132,11 @@
             this.label4.TabIndex = 11;
             this.label4.Text = "Companies:";
             // 
+            // timer1
+            // 
+            this.timer1.Interval = 10000;
+            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -163,6 +170,7 @@
         private System.Windows.Forms.Label txtBaanIP;
         private System.Windows.Forms.Label txtCompanies;
         private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Timer timer1;
     }
 }
 

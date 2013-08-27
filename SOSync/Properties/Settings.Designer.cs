@@ -127,5 +127,14 @@ namespace SOSync.Properties {
                 return ((bool)(this["SampleQuery"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1800")]
+        public int TimerIntervalSec {
+            get {
+                return ((int)(this["TimerIntervalSec"]));
+            }
+        }
     }
 }

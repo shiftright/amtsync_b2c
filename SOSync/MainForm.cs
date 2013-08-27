@@ -129,9 +129,8 @@ User Id=baan;Password=baan;"))
         private void MainForm_Load(object sender, EventArgs e)
         {
             Logger.addListBox(lbLog);
-            worker = new ImportWorker();
-            worker.MainForm = this;
 
+            timer1.Interval = Properties.Settings.Default.TimerIntervalSec * 1000;
 
             txtBaanIP.Text = Properties.Settings.Default.BaanDBDataSource;
             txtCRMURL.Text = Properties.Settings.Default.CRMURL;
@@ -144,30 +143,40 @@ User Id=baan;Password=baan;"))
 
         private void btnStart_Click(object sender, EventArgs e)
         {
-            if (!worker.Running)
+            if (worker != null && worker.Running)
             {
-                Logger.Log(Logger.LEVEL_INFO, "เริ่มดำเนินการ");
-                btnStop.Enabled = true;
-                btnStart.Enabled = false;
-                worker.RunWork();
+                Logger.Log(Logger.LEVEL_WARNING, "ดำเนินการอยู่แล้ว");
             }
             else
             {
-                Logger.Log(Logger.LEVEL_WARNING, "ดำเนินการอยู่แล้ว");
+                btnStop.Enabled = true;
+                timer1_Tick(null, null);
+                timer1.Start();
             }
         }
 
         private void btnStop_Click(object sender, EventArgs e)
         {
-            if (worker.Running)
-            {
+            timer1.Stop();
+            btnStop.Enabled = false;
+
+            if (worker == null || !worker.Running) {
+                Logger.Log(Logger.LEVEL_INFO, "หยุดดำเนินการ");
+                worker = null;
+            } else {
                 Logger.Log(Logger.LEVEL_INFO, "กำลังหยุดดำเนินการ");
-                btnStop.Enabled = false;
                 worker.Stop = true;
             }
-            else
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            if (worker == null || !worker.Running)
             {
-                Logger.Log(Logger.LEVEL_WARNING, "หยุดอยู่แล้ว");
+                worker = new ImportWorker();
+                worker.MainForm = this;
+                Logger.Log(Logger.LEVEL_INFO, "เริ่มดำเนินการ");
+                worker.RunWork();
             }
         }
     }

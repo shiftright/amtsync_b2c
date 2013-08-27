@@ -41,10 +41,9 @@ namespace SOSync
             }
         }
 
-        public static BaanDataSet.SalesOrderDataTable GetSalesOrderByCompany(string company)
+        public static DataTable GetSalesOrderByCompany(string company)
         {
-            string second_company = "888";
-            string query = "SELECT BAANDB.TTDSLS400{0}.\"T$ORNO\", BAANDB.TAMSLS812{1}.\"T$CPRO\", BAANDB.TTDSLS400{0}.\"T$SOTP\", " +
+            string query = "SELECT BAANDB.TTDSLS400{0}.\"T$ORNO\", BAANDB.TAMSLS812{0}.\"T$CPRO\", BAANDB.TTDSLS400{0}.\"T$SOTP\", " +
                "BAANDB.TTDSLS400{0}.\"T$ODAT\", BAANDB.TTDSLS400{0}.\"T$TXTB\", BAANDB.TTDSLS400{0}.\"T$CLYN\", " +
                "BAANDB.TTDSLS400{0}.\"T$REFA\", BAANDB.TTDSLS400{0}.\"T$REFB\", BAANDB.TTDSLS400{0}.\"T$CORN\", " +
                "BAANDB.TTDSLS400{0}.\"T$CREP\", BAANDB.TTDSLS400{0}.\"T$OSRP\", BAANDB.TTDSLS400{0}.\"T$CCRS\", " +
@@ -53,15 +52,15 @@ namespace SOSync
                "BAANDB.TTDSLS400{0}.\"T$STCN\", BAANDB.TTDSLS400{0}.\"T$ITBP\", BAANDB.TTDSLS400{0}.\"T$ITAD\", " +
                "BAANDB.TTDSLS400{0}.\"T$ITCN\", BAANDB.TTDSLS400{0}.\"T$CCTY\", BAANDB.TTDSLS400{0}.\"T$CBRN\", " +
                "BAANDB.TTDSLS400{0}.\"T$COFC\", BAANDB.TTDSLS400{0}.\"T$PRDT\", BAANDB.TTDSLS400{0}.\"T$CREG\", " +
-               "BAANDB.TTDSLS400{0}.\"T$DDAT\" " +
-               "FROM           BAANDB.TTDSLS400{0}, BAANDB.TAMSLS812{1} " +
-               "WHERE          BAANDB.TTDSLS400{0}.\"T$ORNO\" = BAANDB.TAMSLS812{1}.\"T$ORNO\"(+) "+
+               "BAANDB.TTDSLS400{0}.\"T$DDAT\", BAANDB.TTDSLS400{0}.\"T$ODNO\"  " +
+               "FROM           BAANDB.TTDSLS400{0}, BAANDB.TAMSLS812{0} " +
+               "WHERE          BAANDB.TTDSLS400{0}.\"T$ORNO\" = BAANDB.TAMSLS812{0}.\"T$ORNO\"(+) "+
                "AND            BAANDB.TTDSLS400{0}.\"T$ODAT\" >= :PARAM1 ";
             if (Properties.Settings.Default.SampleQuery)
             {
                 query += " AND ROWNUM < 100 ";
             }
-            query = string.Format(query, company, second_company);
+            query = string.Format(query, company);
 
             using (OracleConnection conn = new OracleConnection(BaanDBConnectionString))
             {
@@ -73,7 +72,7 @@ namespace SOSync
 
                     using (OracleDataAdapter adapter = new OracleDataAdapter(command))
                     {
-                        BaanDataSet.SalesOrderDataTable table = new BaanDataSet.SalesOrderDataTable();
+                        DataTable table = new DataTable();
                         adapter.Fill(table);
                         return table;
                     }

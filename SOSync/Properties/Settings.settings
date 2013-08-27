@@ -44,5 +44,8 @@
     <Setting Name="SampleQuery" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">True</Value>
     </Setting>
+    <Setting Name="TimerIntervalSec" Type="System.Int32" Scope="Application">
+      <Value Profile="(Default)">1800</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
