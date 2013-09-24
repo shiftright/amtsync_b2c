@@ -15,7 +15,8 @@ namespace SOSync
         public volatile bool Running = false;
         public MainForm MainForm;
 
-        public void RunWork() {
+        public void RunWork()
+        {
             Running = true;
             Stop = false;
             Thread thread = new Thread(this.DoWork);
@@ -25,6 +26,7 @@ namespace SOSync
         private Guid SaveCRMSO(CRMConnection crm, string company, DataRow row, Entity crmso, bool create)
         {
             string so_orderno = Convert.ToString(row["t$orno"]);    // Sales Order No.
+            string so_return_so = Convert.ToString(row["t$odno"]);		// Return Order Number
             string so_crm_project = Convert.ToString(row["t$cpro"]);    // Project
             DateTime so_order_date = Convert.ToDateTime(row["t$odat"]);   // Order Date
             string so_order_type = Convert.ToString(row["t$sotp"]);       // Sales Order Type
@@ -59,6 +61,7 @@ namespace SOSync
                 + " CBRN:" + row["t$cbrn"] + " COFC:" + row["t$cofc"] + " CREG:" + row["t$creg"]);
 
             crmso["am_txtsono"] = so_orderno;
+            crmso["am_returnsofrom"] = so_return_so;
             crmso["am_project"] = crm.FindRefByBaanCode(CRM.ENTITY_PROJECT, so_crm_project);
             crmso["am_txtsotype"] = so_order_type;
             crmso["am_lopsalesordertype"] = crm.FindRefByBaanCode(CRM.ENTITY_SO_TYPE, so_order_type);
@@ -102,7 +105,6 @@ namespace SOSync
         private void SaveCRMSOLine(CRMConnection crm, string company, Entity crmso, DataRow linerow, Entity entity, bool create)
         {
             string soline_orderno = Convert.ToString(linerow["t$orno"]);		// Transection Type
-            string soline_return_so = Convert.ToString(linerow["t$odno"]);		// Return Order Number
             string soline_transaction_type = Convert.ToString(linerow["t$ttyp"]);		// Transection Type
             string soline_project_no = Convert.ToString(linerow["t$cprj"]);		// Project Number
             string soline_position = Convert.ToString(linerow["t$pono"]);		// Position Number
@@ -121,13 +123,12 @@ namespace SOSync
             double soline_quantity = Convert.ToDouble(linerow["t$oqua"]);		// Ordered Quantity
             double soline_amount = Convert.ToDouble(linerow["t$oamt"]);		// Amount
             double soline_discount_percent = Convert.ToDouble(linerow["t$disc$1"]);		// Line Discount (%)
-            double soline_discount_amount = Convert.ToDouble(linerow["t$amld"]);		// Discount Amount
+            double soline_discount_amount = Convert.ToDouble(linerow["t$ldam$1"]);		// Discount Amount
             double soline_ordered_line_discount_amount = Convert.ToDouble(linerow["t$amld"]);		// Orde Line Discount Amount
             double soline_total_amount = Convert.ToDouble(linerow["t$oamt"]);		// Total Amount
             string soline_invoice = Convert.ToString(linerow["t$invn"]); // Invoice Number
 
             entity["am_name"] = soline_orderno;
-            entity["am_returnsofrom"] = soline_return_so;
             entity["am_lopsalesordernumberid"] = crmso.ToEntityReference();
             entity["am_txttransactiontype"] = soline_transaction_type;
             entity["am_txtprojectnumber"] = soline_project_no;
@@ -162,7 +163,8 @@ namespace SOSync
             }
         }
 
-        private Entity SearchCRMSoLine(string position, string sequence, EntityCollection lines) {
+        private Entity SearchCRMSoLine(string position, string sequence, EntityCollection lines)
+        {
             foreach (Entity crmline in lines.Entities)
             {
                 if ((Convert.ToString(crmline["am_intpositionnumber"]) == position)
@@ -187,102 +189,123 @@ namespace SOSync
 
                         foreach (string company in Properties.Settings.Default.CompanyList)
                         {
-                            if (Stop) { return; } // Check stop before starting each batch.
-                            using (Logger.Scope("ตรวจสอบข้อมูลรหัสบริษัท: " + company))
+                            try
                             {
-                                Importer importer = new Importer(this, company);
-                                Logger.Log(Logger.LEVEL_INFO, "ดึงข้อมูล Sale Order จาก Baan");
 
-                                DataTable orders = BaanStorage.GetSalesOrderByCompany(company);
-                                //importer.FetchBAANSaleOrder();
-
-                                Logger.Log(Logger.LEVEL_INFO, "จำนวน SO: " + orders.Rows.Count + " รายการ");
-
-                                int count = 0;
-                                foreach (DataRow row in orders.Rows)
+                                if (Stop) { return; } // Check stop before starting each batch.
+                                using (Logger.Scope("ตรวจสอบข้อมูลรหัสบริษัท: " + company))
                                 {
-                                    count++;
-                                    if (Stop) { return; } // Check stop before starting each item.
+                                    Importer importer = new Importer(this, company);
+                                    Logger.Log(Logger.LEVEL_INFO, "ดึงข้อมูล Sale Order จาก Baan");
 
-                                    if ((count - 1) % 100 == 0)
+                                    DataTable orders = BaanStorage.GetSalesOrderByCompany(company);
+                                    //importer.FetchBAANSaleOrder();
+
+                                    Logger.Log(Logger.LEVEL_INFO, "จำนวน SO: " + orders.Rows.Count + " รายการ");
+
+                                    int count = 0;
+                                    foreach (DataRow row in orders.Rows)
                                     {
-                                        Logger.Log(Logger.LEVEL_INFO, "CHECKING SO: #" + count);
-                                    }
-
-                                    string so_orderno = Convert.ToString(row["t$orno"]);    // Sales Order No.
-                                    using (Logger.Scope("SO: #" + count + " -- " + so_orderno, Logger.LEVEL_DEBUG))
-                                    {
-                                        bool new_so = false;
-                                        Guid crmso_guid;
-
-                                        Entity crmso = crm.FindByBaanCode(CRM.ENTITY_SO, so_orderno);
-                                        if (crmso == null)
+                                        try
                                         {
-                                            Logger.Log(Logger.LEVEL_DEBUG, "CREATE SO: " + so_orderno);
-                                            crmso = new Entity(CRM.ENTITY_SO);
-                                            crmso_guid = SaveCRMSO(crm, company, row, crmso, true);
-                                            Logger.Log(Logger.LEVEL_DEBUG, "CREATE SO DONE: " + crmso_guid);
-                                            // Refresh
-                                            crmso = crm.service.Retrieve(CRM.ENTITY_SO, crmso_guid, new Microsoft.Xrm.Sdk.Query.ColumnSet(true));
-                                            new_so = true;
-                                        } else {
-                                            crmso_guid = crmso.Id;
-                                            new_so = false;
-                                        }
+                                            count++;
+                                            if (Stop) { return; } // Check stop before starting each item.
 
-                                        DataTable solines = BaanStorage.GetSalesOrderLineByCompany(company, so_orderno);
-                                        EntityCollection crm_solines = crm.FindSalesOrderLines(crmso_guid);
-                                        Logger.Log(Logger.LEVEL_DEBUG, "COUNT SOL BAAN: " + solines.Rows.Count + " CRM: " + crm_solines.Entities.Count);
-
-                                        if (solines.Rows.Count == 0)
-                                        {
-                                            // Always update old SO with no child.
-                                            if (!new_so)
+                                            if ((count - 1) % 100 == 0)
                                             {
-                                                Logger.Log(Logger.LEVEL_DEBUG, "UPDATE SO: " + so_orderno);
-                                                SaveCRMSO(crm, company, row, crmso, false);
+                                                Logger.Log(Logger.LEVEL_INFO, "CHECKING SO: #" + count);
                                             }
-                                        }
-                                        else
-                                        {
-                                            bool line_changed = false;
-                                            foreach (DataRow linerow in solines.Rows)
-                                            {
-                                                string soline_position = Convert.ToString(linerow["t$pono"]);		// Position Number
-                                                string soline_sequence = Convert.ToString(linerow["t$sqnb"]);		// Sequence Number
 
-                                                Entity crmline = SearchCRMSoLine(soline_position, soline_sequence, crm_solines);
-                                                if (crmline == null)
+                                            string so_orderno = Convert.ToString(row["t$orno"]);    // Sales Order No.
+                                            using (Logger.Scope("SO: #" + count + " -- " + so_orderno, Logger.LEVEL_DEBUG))
+                                            {
+                                                bool new_so = false;
+                                                Guid crmso_guid;
+
+                                                Entity crmso = crm.FindByBaanCode(CRM.ENTITY_SO, so_orderno);
+                                                if (crmso == null)
                                                 {
-                                                    line_changed = true;
-                                                    Logger.Log(Logger.LEVEL_DEBUG, "CREATE SOL: " + soline_position + " " + soline_sequence);
-                                                    crmline = new Entity(CRM.ENTITY_SOLINE);
-                                                    SaveCRMSOLine(crm, company, crmso, linerow, crmline, true);
-                                                    Logger.Log(Logger.LEVEL_DEBUG, "CREATE SOL DONE");
+                                                    Logger.Log(Logger.LEVEL_DEBUG, "CREATE SO: " + so_orderno);
+                                                    crmso = new Entity(CRM.ENTITY_SO);
+                                                    crmso_guid = SaveCRMSO(crm, company, row, crmso, true);
+                                                    Logger.Log(Logger.LEVEL_DEBUG, "CREATE SO DONE: " + crmso_guid);
+                                                    // Refresh
+                                                    crmso = crm.service.Retrieve(CRM.ENTITY_SO, crmso_guid, new Microsoft.Xrm.Sdk.Query.ColumnSet(true));
+                                                    new_so = true;
                                                 }
                                                 else
                                                 {
-                                                    string invoice = Convert.ToString(crmline["am_txtinvoicenumber"]);
-                                                    if (string.IsNullOrWhiteSpace(invoice))
+                                                    crmso_guid = crmso.Id;
+                                                    new_so = false;
+                                                }
+
+                                                DataTable solines = BaanStorage.GetSalesOrderLineByCompany(company, so_orderno);
+                                                EntityCollection crm_solines = crm.FindSalesOrderLines(crmso_guid);
+                                                Logger.Log(Logger.LEVEL_DEBUG, "COUNT SOL BAAN: " + solines.Rows.Count + " CRM: " + crm_solines.Entities.Count);
+
+                                                if (solines.Rows.Count == 0)
+                                                {
+                                                    // Always update old SO with no child.
+                                                    if (!new_so)
                                                     {
-                                                        line_changed = true;
-                                                        Logger.Log(Logger.LEVEL_DEBUG, "UPDATE SOL: " + soline_position + " " + soline_sequence);
-                                                        SaveCRMSOLine(crm, company, crmso, linerow, crmline, false);
-                                                        Logger.Log(Logger.LEVEL_DEBUG, "UPDATE SOL DONE");
+                                                        Logger.Log(Logger.LEVEL_DEBUG, "UPDATE SO: " + so_orderno);
+                                                        SaveCRMSO(crm, company, row, crmso, false);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    bool line_changed = false;
+                                                    foreach (DataRow linerow in solines.Rows)
+                                                    {
+                                                        string soline_position = Convert.ToString(linerow["t$pono"]);		// Position Number
+                                                        string soline_sequence = Convert.ToString(linerow["t$sqnb"]);		// Sequence Number
+
+                                                        Entity crmline = SearchCRMSoLine(soline_position, soline_sequence, crm_solines);
+                                                        if (crmline == null)
+                                                        {
+                                                            line_changed = true;
+                                                            Logger.Log(Logger.LEVEL_DEBUG, "CREATE SOL: " + soline_position + " " + soline_sequence);
+                                                            crmline = new Entity(CRM.ENTITY_SOLINE);
+                                                            SaveCRMSOLine(crm, company, crmso, linerow, crmline, true);
+                                                            Logger.Log(Logger.LEVEL_DEBUG, "CREATE SOL DONE");
+                                                        }
+                                                        else
+                                                        {
+                                                            string invoice = Convert.ToString(crmline["am_txtinvoicenumber"]);
+                                                            if (string.IsNullOrWhiteSpace(invoice))
+                                                            {
+                                                                line_changed = true;
+                                                                Logger.Log(Logger.LEVEL_DEBUG, "UPDATE SOL: " + soline_position + " " + soline_sequence);
+                                                                SaveCRMSOLine(crm, company, crmso, linerow, crmline, false);
+                                                                Logger.Log(Logger.LEVEL_DEBUG, "UPDATE SOL DONE");
+                                                            }
+                                                        }
+                                                    }
+
+
+                                                    if (line_changed)
+                                                    {
+                                                        // Update SO if any of line child is changed.
+                                                        Logger.Log(Logger.LEVEL_DEBUG, "UPDATE SO: " + so_orderno);
+                                                        SaveCRMSO(crm, company, row, crmso, false);
                                                     }
                                                 }
                                             }
-
-
-                                            if (line_changed)
-                                            {
-                                                // Update SO if any of line child is changed.
-                                                Logger.Log(Logger.LEVEL_DEBUG, "UPDATE SO: " + so_orderno);
-                                                SaveCRMSO(crm, company, row, crmso, false);
-                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Logger.Log(Logger.LEVEL_ERROR, "ERROR AT SO LEVEL");
+                                            Logger.Log(Logger.LEVEL_ERROR, ex.Message);
+                                            Logger.Log(Logger.LEVEL_ERROR, ex.StackTrace);
                                         }
                                     }
                                 }
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Log(Logger.LEVEL_ERROR, "ERROR AT COMPANY LEVEL");
+                                Logger.Log(Logger.LEVEL_ERROR, ex.Message);
+                                Logger.Log(Logger.LEVEL_ERROR, ex.StackTrace);
                             }
                         }
                     }
